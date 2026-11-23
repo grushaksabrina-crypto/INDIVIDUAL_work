@@ -528,17 +528,18 @@ if ($year === false || $year < 1200 || $year > $currentYear) {
 
 ## 8. Скриншоты работы приложения
 
-```markdown
-![Главная страница](screenshots)
+### Главная страница
+![Главная страница «Verdant Archive»](screenshots/homepage.jpg)
 
-![Регистрация](screenshots)
+### Каталог экспонатов
+![Каталог экспонатов и поиск](screenshots/catalog.jpg)
 
-![Административная панель](screenshots)
+### Карточка экспоната
+![Страница просмотра экспоната](screenshots/artwork-details.jpg)
 
-![База данных](screenshots/database.png)
-```
-
----
+### Регистрация и вход
+![Страница регистрации пользователя](screenshots/register.png)
+![Страница входа в систему](screenshots/login.png)
 
 ## 9. Использованные источники
 
