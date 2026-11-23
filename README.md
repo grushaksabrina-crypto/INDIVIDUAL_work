@@ -535,7 +535,7 @@ if ($year === false || $year < 1200 || $year > $currentYear) {
 ![Каталог экспонатов и поиск](screenshots/catalog.jpg)
 
 ### Карточка экспоната
-![Страница просмотра экспоната](screenshots/artwork-details.jpg)
+![Страница просмотра экспоната](screenshots/artwork-details.png)
 
 ### Регистрация и вход
 ![Страница регистрации пользователя](screenshots/register.png)
