@@ -529,10 +529,10 @@ if ($year === false || $year < 1200 || $year > $currentYear) {
 ## 8. Скриншоты работы приложения
 
 ### Главная страница
-![Главная страница «Verdant Archive»](screenshots/homepage.jpg)
+![Главная страница «Verdant Archive»](screenshots/homepage.png)
 
 ### Каталог экспонатов
-![Каталог экспонатов и поиск](screenshots/catalog.jpg)
+![Каталог экспонатов и поиск](screenshots/catalog.png)
 
 ### Карточка экспоната
 ![Страница просмотра экспоната](screenshots/artwork-details.png)
