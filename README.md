@@ -526,6 +526,292 @@ if ($year === false || $year < 1200 || $year > $currentYear) {
 
 ---
 
+### 7.10. Получение подробной информации о произведении
+
+**Файл:** `artwork.php`
+
+```php
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+
+if (!$id) {
+    header('Location: index.php');
+    exit;
+}
+
+$pdo = Database::getConnection();
+
+$stmt = $pdo->prepare("
+    SELECT a.*, u.full_name AS curator_name
+    FROM artworks a
+    LEFT JOIN users u ON u.id = a.created_by
+    WHERE a.id = ?
+");
+
+$stmt->execute([$id]);
+$art = $stmt->fetch();
+
+if (!$art) {
+    http_response_code(404);
+    Security::setFlash('error', 'Запрашиваемый экспонат не найден в архиве.');
+    header('Location: index.php');
+    exit;
+}
+```
+
+**Описание:** данный фрагмент отвечает за получение подробной информации об отдельном произведении искусства. Идентификатор передаётся через GET-параметр `id`. После проверки его корректности выполняется SQL-запрос, который получает информацию о произведении и имя пользователя, добавившего его в архив. Если запись не найдена, устанавливается HTTP-статус 404 и пользователь перенаправляется в каталог.
+
+### 7.11. Отображение изображения произведения
+
+**Файл:** `artwork.php`
+
+```php
+<?php if (!empty($art['image_url'])): ?>
+    <img
+        src="<?= Security::escape($art['image_url']) ?>"
+        alt="<?= Security::escape($art['title']) ?>"
+    >
+<?php else: ?>
+    <div class="thumb-placeholder large">
+        VERDANT ARCHIVE / NO. <?= (int)$art['id'] ?>
+    </div>
+<?php endif; ?>
+```
+
+**Описание:** данный фрагмент отвечает за отображение изображения произведения искусства. Если в базе данных присутствует ссылка на изображение, она используется для загрузки картинки. Если ссылка отсутствует, вместо изображения отображается специальный блок с идентификатором произведения. Для безопасного вывода данных применяется метод `Security::escape()`.
+
+### 7.12. Получение произведений пользователя в личном кабинете
+
+**Файл:** `dashboard.php`
+
+```php
+Auth::requireLogin();
+
+$user = Auth::user();
+$pdo = Database::getConnection();
+
+$stmt = $pdo->prepare(
+    'SELECT * FROM artworks
+     WHERE created_by = ?
+     ORDER BY created_at DESC'
+);
+
+$stmt->execute([$user['id']]);
+$myArtworks = $stmt->fetchAll();
+```
+
+**Описание:** данный код отвечает за получение списка произведений, добавленных текущим пользователем. Сначала проверяется наличие авторизации с помощью `Auth::requireLogin()`. Затем определяется идентификатор пользователя и выполняется SQL-запрос, который выбирает только связанные с ним произведения. Результаты сортируются по дате добавления в обратном хронологическом порядке.
+
+### 7.13. Удаление произведения из каталога
+
+**Файл:** `admin/index.php`
+
+```php
+if ($action === 'delete_artwork') {
+    $artId = filter_input(
+        INPUT_POST,
+        'artwork_id',
+        FILTER_VALIDATE_INT
+    );
+
+    if ($artId) {
+        $pdo->prepare(
+            'DELETE FROM artworks WHERE id = ?'
+        )->execute([$artId]);
+
+        Security::setFlash(
+            'success',
+            'Экспонат удалён из базы данных.'
+        );
+    }
+}
+```
+
+**Описание:** данный фрагмент реализует удаление произведения из базы данных через административную панель. Идентификатор записи проверяется перед выполнением операции. Затем SQL-команда `DELETE` удаляет соответствующую запись из таблицы `artworks`. После выполнения операции администратор получает уведомление об успешном удалении.
+
+### 7.14. Изменение роли пользователя
+
+**Файл:** `admin/index.php`
+
+```php
+} elseif ($action === 'toggle_role') {
+    $targetId = filter_input(
+        INPUT_POST,
+        'user_id',
+        FILTER_VALIDATE_INT
+    );
+
+    if ($targetId && $targetId !== (int)$currentUser['id']) {
+        $stmt = $pdo->prepare(
+            'SELECT role FROM users WHERE id = ?'
+        );
+
+        $stmt->execute([$targetId]);
+        $target = $stmt->fetch();
+
+        if ($target) {
+            $newRole = ($target['role'] === 'admin')
+                ? 'user'
+                : 'admin';
+
+            $pdo->prepare(
+                'UPDATE users SET role = ? WHERE id = ?'
+            )->execute([$newRole, $targetId]);
+
+            Security::setFlash(
+                'success',
+                "Роль пользователя обновлена на «{$newRole}»."
+            );
+        }
+    }
+}
+```
+
+**Описание:** функция позволяет администратору изменять права доступа других пользователей. Система получает текущую роль выбранной учётной записи и переключает её между `admin` и `user`. При этом изменение собственной роли текущему администратору запрещено.
+
+### 7.15. Редактирование информации о произведении
+
+**Файл:** `admin/edit_artwork.php`
+
+```php
+$update = $pdo->prepare("
+    UPDATE artworks
+    SET title = ?,
+        artist = ?,
+        medium = ?,
+        dimensions = ?,
+        creation_year = ?,
+        status = ?,
+        description = ?,
+        image_url = ?
+    WHERE id = ?
+");
+
+$update->execute([
+    $data['title'],
+    $data['artist'],
+    $data['medium'],
+    $data['dimensions'],
+    (int)$data['creation_year'],
+    $data['status'],
+    $data['description'],
+    $data['image_url'] !== '' ? $data['image_url'] : null,
+    $id,
+]);
+```
+
+**Описание:** данный код используется для обновления информации о существующем произведении искусства. После проверки введённых данных выполняется SQL-запрос `UPDATE`, который изменяет название, автора, технику исполнения, размеры, год создания, статус, описание и ссылку на изображение выбранного произведения.
+
+### 7.16. Использование CSRF-токена в форме добавления произведения
+
+**Файл:** `add_artwork.php`
+
+```php
+<form method="post" class="editorial-form">
+    <input
+        type="hidden"
+        name="csrf_token"
+        value="<?= Security::escape(Security::getCsrfToken()) ?>"
+    >
+
+    <label>Название произведения
+        <input type="text" name="title" required minlength="2" maxlength="160">
+    </label>
+
+    <label>Автор / Художник
+        <input type="text" name="artist" required minlength="2" maxlength="120">
+    </label>
+
+    <button type="submit" class="button">
+        Добавить экспонат
+    </button>
+</form>
+```
+
+**Описание:** форма используется для добавления нового произведения в каталог. Метод `POST` передаёт введённые данные серверу, а скрытое поле `csrf_token` содержит защитный токен текущей сессии. Атрибуты `required`, `minlength` и `maxlength` обеспечивают базовую проверку заполнения полей на стороне браузера. Дополнительная проверка выполняется на сервере с помощью класса `Validator`.
+
+### 7.17. Восстановление пароля
+
+**Файл:** `forgot_password.php`
+
+```php
+$newToken = bin2hex(random_bytes(32));
+$expires = date('Y-m-d H:i:s', time() + 3600);
+
+$pdo->prepare(
+    'DELETE FROM password_resets WHERE email = ?'
+)->execute([$email]);
+
+$pdo->prepare(
+    'INSERT INTO password_resets
+    (email, token, expires_at)
+    VALUES (?, ?, ?)'
+)->execute([
+    $email,
+    $newToken,
+    $expires
+]);
+
+$demoResetLink = "forgot_password.php?token={$newToken}";
+```
+
+**Описание:** при запросе восстановления пароля генерируется уникальный случайный токен с помощью `random_bytes()`. Для него устанавливается срок действия один час. Токен сохраняется в таблице `password_resets` и используется для подтверждения права на изменение пароля. В локальной версии приложения ссылка восстановления отображается непосредственно на странице, без отправки электронного письма.
+
+### 7.18. Завершение пользовательской сессии
+
+**Файл:** `logout.php`
+
+```php
+require_once __DIR__ . '/core/Auth.php';
+
+Auth::logout();
+
+header('Location: index.php');
+exit;
+```
+
+**Описание:** данный фрагмент реализует выход пользователя из системы. Метод `Auth::logout()` завершает текущую пользовательскую сессию и очищает данные авторизации. После выполнения операции пользователь автоматически перенаправляется на главную страницу приложения.
+
+### 7.19. Получение списка пользователей в административной панели
+
+**Файл:** `admin/index.php`
+
+```php
+$users = $pdo->query(
+    'SELECT id, full_name, email, role, created_at
+     FROM users
+     ORDER BY id ASC'
+)->fetchAll();
+```
+
+**Описание:** данный SQL-запрос используется для получения списка зарегистрированных пользователей. Из таблицы `users` выбираются идентификатор, имя, электронная почта, роль и дата регистрации. Полученные данные отображаются в административной панели, где администратор может просматривать учётные записи и управлять правами доступа.
+
+### 7.20. Удаление учётной записи пользователя
+
+**Файл:** `admin/index.php`
+
+```php
+} elseif ($action === 'delete_user') {
+    $targetId = filter_input(
+        INPUT_POST,
+        'user_id',
+        FILTER_VALIDATE_INT
+    );
+
+    if ($targetId && $targetId !== (int)$currentUser['id']) {
+        $pdo->prepare(
+            'DELETE FROM users WHERE id = ?'
+        )->execute([$targetId]);
+
+        Security::setFlash(
+            'success',
+            'Учётная запись пользователя удалена.'
+        );
+    }
+}
+```
+
+**Описание:** данный механизм позволяет администратору удалять учётные записи пользователей. Перед выполнением операции проверяется идентификатор выбранного пользователя. Удаление собственной учётной записи текущим администратором через этот механизм запрещено. После выполнения SQL-запроса `DELETE` информация об успешной операции сохраняется для отображения уведомления.
+
 ## 8. Скриншоты работы приложения
 
 ### Главная страница
