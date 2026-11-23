@@ -529,11 +529,11 @@ if ($year === false || $year < 1200 || $year > $currentYear) {
 ## 8. Скриншоты работы приложения
 
 ```markdown
-![Главная страница](screenshots/homepage.png)
+![Главная страница](screenshots)
 
-![Регистрация](screenshots/register.png)
+![Регистрация](screenshots)
 
-![Административная панель](screenshots/admin.png)
+![Административная панель](screenshots)
 
 ![База данных](screenshots/database.png)
 ```
